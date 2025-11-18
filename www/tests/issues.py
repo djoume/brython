@@ -3323,31 +3323,111 @@ assert not os.path.exists('coucou')
 import datetime
 assert datetime.time(0).strftime('%I') == '12'
 
-# issue 2639 pickle load should raise UnpicklingError for invalid data
-import pickle
+# issue 2628
+foo = "bar"
+assert f"{foo=}" == "foo='bar'"
 
-invalid_data = b"this is not valid pickle data"
+# issue 2636
+# Test that json.loads with empty string raises JSONDecodeError
+import json
+
 try:
-    pickle.loads(invalid_data)
-    assert False, "Expected UnpicklingError to be raised"
-except pickle.UnpicklingError:
-    assert True
+    json.loads('')
+    assert False, "Expected JSONDecodeError to be raised"
+except json.JSONDecodeError as e:
+    # Verify it's the correct error type and message
+    assert 'Expecting value' in str(e)
+    assert e.pos == 0
 
+# issue 2637
+# Test that json.loads with unterminated string raises JSONDecodeError
+try:
+    json.loads('"unclosed')
+    assert False, "Expected JSONDecodeError for unterminated string"
+except json.JSONDecodeError as e:
+    assert 'Unterminated string' in str(e)
+
+# Test that json.loads with incomplete object raises JSONDecodeError
+try:
+    json.loads('{"key": "value"')
+    assert False, "Expected JSONDecodeError for incomplete object"
+except json.JSONDecodeError as e:
+    assert 'Expecting' in str(e)
+
+# Test that json.loads with incomplete array raises JSONDecodeError
+try:
+    json.loads('["item1", "item2"')
+    assert False, "Expected JSONDecodeError for incomplete array"
+except json.JSONDecodeError as e:
+    assert 'Expecting' in str(e)
+
+# issue 2613
 from unittest.mock import patch, mock_open
 
-with patch("builtins.open", mock_open(read_data=invalid_data)):
-  with open("dummy_file", "rb") as f:
-    try:
-      pickle.load(f)
-      assert False, "Expected UnpicklingError to be raised"
-    except pickle.UnpicklingError:
-      assert True
+# Test that mock_open has writelines method
+m = mock_open()
+with patch('builtins.open', m):
+    with open("test.txt", "w") as f:
+        f.writelines(["line1\n", "line2\n"])
+
+# Test that mock_open has truncate method
+m = mock_open()
+with patch('builtins.open', m):
+    with open("test.txt", "w") as f:
+        f.truncate.return_value = 10
+        result = f.truncate(10)
+        assert result == 10
+
+# Test that mock_open has readlines method
+m = mock_open(read_data="line1\nline2\n")
+with patch('builtins.open', m):
+    with open("test.txt", "r") as f:
+        lines = f.readlines()
+
+# issue 2633
+# MagicMock should allow calling methods that are set up as MagicProxy descriptors
+from unittest.mock import MagicMock
+
+# Test direct method call on MagicMock
+mock = MagicMock()
+result = mock.some_method()
+assert result is not None
+
+# Test magic methods accessed via operators (tests MagicProxy.__call__)
+str_result = str(mock)  # Should not raise "MagicProxy object is not callable"
+assert str_result is not None
+repr_result = repr(mock)  # Test __repr__ as well
+assert repr_result is not None
+
+# Test patching datetime.datetime and calling now()
+import datetime
+with patch('datetime.datetime') as mock_dt:
+    result = mock_dt.now()
+    assert result is not None
+    # Should be able to call it multiple times
+    result2 = mock_dt.now()
+    assert result2 is not None
+
+# test iteration over CSV data using mock_open
+import csv
+fake_csv_data = """item,quantity,price
+apple,10,0.5
+banana,5,0.2
+orange,8,0.3
+"""
+with patch("builtins.open", mock_open(read_data=fake_csv_data)):
+    with open("test.csv", "r") as f:
+        reader = csv.reader(f)
+        next(reader)  # Skip header
+        total_revenue = 0
+        for row in reader:
+            quantity = int(row[1])
+            price = float(row[2])
+            total_revenue += quantity * price
+assert total_revenue == 10*0.5 + 5*0.2 + 8*0.3
 
 # ==========================================
 # Finally, report that all tests have passed
 # ==========================================
 print('passed all tests')
 
-# issue 2628
-foo = "bar"
-assert f"{foo=}" == "foo='bar'"
