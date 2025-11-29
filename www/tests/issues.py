@@ -3323,6 +3323,7 @@ assert not os.path.exists('coucou')
 import datetime
 assert datetime.time(0).strftime('%I') == '12'
 
+<<<<<<< HEAD
 # issue 2639 pickle load should raise UnpicklingError for invalid data
 import pickle
 
@@ -3342,11 +3343,6 @@ with patch("builtins.open", mock_open(read_data=invalid_data)):
       assert False, "Expected UnpicklingError to be raised"
     except pickle.UnpicklingError:
       assert True
-
-# ==========================================
-# Finally, report that all tests have passed
-# ==========================================
-print('passed all tests')
 
 # issue 2628
 foo = "bar"
@@ -3377,3 +3373,17 @@ try:
     assert False, "Should have raised TypeError"
 except TypeError as e:
     assert str(e) == "Can't instantiate abstract class AbstractMultiple without an implementation for abstract methods 'method1', 'method2'"
+
+# issue 2646
+from unittest.mock import MagicMock
+
+class EmailChannel:
+    def send(self):
+        return "foo"
+
+MagicMock(spec=EmailChannel)
+
+# ==========================================
+# Finally, report that all tests have passed
+# ==========================================
+print('passed all tests')
